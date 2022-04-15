@@ -1,0 +1,159 @@
+
+#1. Clear Text Processing
+
+def inputText(filename):
+    with open(filename,'r')as f:
+        text = f.read()
+    text = text.split('\n')
+    text = [eval(x) for x in text]
+    text = ['{:08b}'.format(x) for x in text]
+    text = ''.join(text)
+    
+    return text
+
+#IP replacement of plaintext, and divided into left and right sub-strings
+def IP_Transposition(plaintext):
+    LR = []
+    for i in IP:
+        LR.append(int(plaintext[i-1]))
+    L = LR[:32]
+    R = LR[32:]
+    return L,R
+
+
+#2. Key Processing
+
+def Key_Transposition(key):
+    CD = []
+    for i in PC_1:
+        CD.append(int(key[i-1]))
+    C = CD[:28]
+    D = CD[28:]
+    return C,D
+
+# Key Compression
+
+def Key_Compress(C,D):
+    key = C+D
+    new_key = []
+    for i in PC_2:
+        new_key.append(key[i-1])
+    return new_key
+
+def generateKset(key):
+    key = inputKey(key)
+    C,D = Key_Transposition(key)
+    K = []
+    for i in LeftRotate:
+        C = Key_LeftRotate(C,i)
+        C = Key_LeftRotate(D,i)
+        K.append(Key_Compress(C,D))
+    return K
+
+# Expansion of plaintext R to 48 bits
+# F Function
+
+def R_expand(R):
+    new_R = []
+    for i in E:
+        new_R.append(R[i-1])
+    return new_R
+
+# XOR Two List Elements
+
+def xor(input1,input2):
+    xor_result = []
+    for i in range(0,len(input1)):
+        xor_result.append(int(input1[i])^int(input2[i]))
+    return xor_result
+
+# Replace XOR results with S-boxes
+
+def S_Substitution(xor_result):
+    s_result = []
+    for i in range(0,8):
+        tmp = xor_result[i*6:i*6+5]
+        row = tmp[0]*2+tmp[-1]
+        col = tmp[1]*8+tmp[2]*4+tmp[3]*2+tmp[4]
+        s_result.append('{:04b}'.format(S[i][row][col]))
+    s_result = ''.join(s_result)
+    return s_result
+
+
+
+
+
+#F function
+
+def F(R,K):
+    new_R = R_expand(R)
+    R_Kxor= xor(new_R,K)
+    s_result = S_Substitution(R_Kxor)
+    p_result = P_Transposition(s_result)
+    return p_result
+
+# P-substitution of the result of S-box substitution
+
+def P_Transposition(s_result):
+    p_result = []
+    for i in P:
+        p_result.append(int(s_result[i-1]))
+    return p_result
+
+def DES_encrypt(filename,key,outputFile):
+    # Read plaintext from a file
+    plaintext = inputText(filename)
+    # Substitution and Separation of Plaintext
+    L,R = IP_Transposition(plaintext)
+
+ #   Kset generates
+
+    K = generateKset(key)
+    for i in range(0,1):
+        oldR = R
+        p_result = F(R,K[i])
+        R = xor(L,p_result)
+        L = oldR
+    p_result = F(R,K[15])
+    L = xor(L,p_result)
+
+#IP inverse substitution
+
+    reversedP = IP_reverseTransp(L+R)
+
+# Generating ciphertext in hexadecimal representation
+
+    Cipher = generateHex(reversedP)
+
+
+
+# Write ciphertext to the output File file
+
+    writeFile(outputFile,Cipher)
+    return Cipher
+
+def DES_decrypt(filename,key,outputFile):
+
+# Reading ciphertext in files
+
+    Ciphertext = inputText(filename)
+    # Permutation Separation of Ciphertext
+    L,R = IP_Transposition(Ciphertext)
+#Kset generates
+    K = generateKset(key)
+    for i in range(0,-1):
+        oldR = R
+        p_result = F(R,K[i])
+        
+R = xor(L,p_result)
+        L = oldR
+    
+    p_result = F(R,K[0])
+    L = xor(L,p_result)	
+    reversedP = IP_reverseTransp(L+R)
+    plaintext = generateHex(reversedP)
+    writeFile(outputFile,plaintext)
+    return plaintext
+
+
+Source: Source address https://github.com/SuQinghang
